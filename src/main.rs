@@ -1,9 +1,10 @@
+use std::{net::SocketAddr, str::FromStr, sync::Arc};
+
 use futures::StreamExt;
 use twilight_gateway::{
     stream::{self, ShardEventStream},
-    Config, Event, Intents,
+    Config, Event, Intents, ShardId,
 };
-use twilight_http::client::InteractionClient;
 use twilight_model::application::interaction::{Interaction, InteractionData, InteractionType};
 
 mod context;
@@ -30,7 +31,16 @@ async fn main() -> anyhow::Result<()> {
     let config = Config::new(token.clone(), intents);
 
     // Bot context for sharing data across tasks and accessing twilight clients and general setup
-    let ctx = Context::new(token).await?;
+    let ctx = Arc::new(Context::new(token).await?);
+
+    // Setup lavalink variables to connect to the node
+    let lavalink_host = SocketAddr::from_str(&std::env::var("LAVALINK_HOST")?)?;
+    let lavalink_secret = std::env::var("LAVALINK_SECRET")?;
+
+    // Connects and adds a node to the lavalink client
+    // The handle to the node is not used, but the events are used to check for the TrackEnd event
+    // Used in the tracks queue
+    let (_node, _lavalink_events) = ctx.lavalink.add(lavalink_host, lavalink_secret).await?;
 
     // Initialize the bot slash commands
     ctx.setup_commands().await?;
@@ -41,11 +51,15 @@ async fn main() -> anyhow::Result<()> {
             .await?
             .collect::<Vec<_>>();
 
+    for shard in &shards {
+        ctx.add_shard_message_sender(shard.id(), shard.sender());
+    }
+
     // Stream of shard events
     let mut stream = ShardEventStream::new(shards.iter_mut());
 
     // Initialize the loop to handle events
-    while let Some((_shard, e)) = stream.next().await {
+    while let Some((shard, e)) = stream.next().await {
         let event = match e {
             Ok(ev) => ev,
             Err(err) => {
@@ -59,20 +73,37 @@ async fn main() -> anyhow::Result<()> {
             }
         };
 
-        match event {
-            Event::InteractionCreate(interaction) => {
-                interaction_handler(&ctx.interaction_client().await?, interaction.0).await?
-            }
-            _ => {}
-        }
+        ctx.cache.update(&event);
+        ctx.lavalink.process(&event).await?;
+
+        tokio::spawn(handle_shard_stream_event(event, ctx.clone(), shard.id()));
     }
 
     Ok(())
 }
 
-async fn interaction_handler(
-    interaction_client: &InteractionClient<'_>,
+async fn handle_shard_stream_event(
+    event: Event,
+    ctx: Arc<Context>,
+    shard_id: ShardId,
+) -> anyhow::Result<()> {
+    tracing::info!("Shard {shard_id}, Event: {:?}", event.kind());
+
+    match event {
+        Event::Ready(_) => tracing::info!("Connected on shard {shard_id}"),
+        Event::InteractionCreate(interaction) => {
+            handle_interaction(ctx.clone(), interaction.0, shard_id).await?
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
+async fn handle_interaction(
+    ctx: Arc<Context>,
     interaction: Interaction,
+    shard_id: ShardId,
 ) -> anyhow::Result<()> {
     match interaction.kind {
         InteractionType::ApplicationCommand => {
@@ -84,10 +115,18 @@ async fn interaction_handler(
                             interactions::hello_test::NAME => {
                                 interactions::hello_test::run(&interaction).await?
                             }
+                            interactions::join::NAME => {
+                                interactions::join::run(&interaction, ctx.clone(), shard_id).await?
+                            }
+                            interactions::leave::NAME => {
+                                interactions::leave::run(&interaction, ctx.clone(), shard_id)
+                                    .await?
+                            }
                             _ => todo!("Custom error for non-existent commands"),
                         };
 
-                        interaction_client
+                        ctx.interaction_client()
+                            .await?
                             .create_response(interaction.id, &interaction.token, &response)
                             .await?;
                     }

@@ -1,7 +1,7 @@
 use dashmap::DashMap;
 use hyper::{client::HttpConnector, Client as HyperClient};
 use twilight_cache_inmemory::{InMemoryCache, ResourceType};
-use twilight_gateway::{ShardId, MessageSender};
+use twilight_gateway::{MessageSender, ShardId};
 use twilight_http::{client::InteractionClient, Client as HttpClient};
 use twilight_lavalink::Lavalink;
 use twilight_model::id::{marker::ApplicationMarker, Id};
@@ -13,7 +13,7 @@ pub struct Context {
     pub hyper_client: HyperClient<HttpConnector>,
     pub cache: InMemoryCache,
     pub lavalink: Lavalink,
-    pub shard_senders: DashMap<ShardId, MessageSender>
+    pub shard_senders: DashMap<ShardId, MessageSender>,
 }
 
 impl Context {
@@ -34,7 +34,7 @@ impl Context {
             hyper_client: HyperClient::new(),
             cache,
             lavalink,
-            shard_senders: DashMap::default()
+            shard_senders: DashMap::default(),
         })
     }
 
@@ -55,7 +55,11 @@ impl Context {
     /// Setup all the slash commands (currently only per guild)
     /// TODO: Add support for global commands
     pub async fn setup_commands(&self) -> anyhow::Result<()> {
-        let commands = vec![interactions::hello_test::command()];
+        let commands = vec![
+            interactions::hello_test::command(),
+            interactions::join::command(),
+            interactions::leave::command(),
+        ];
         // Application command registering (doing it per guild as doing it globally can take a couple of minutes)
         self.interaction_client()
             .await?
