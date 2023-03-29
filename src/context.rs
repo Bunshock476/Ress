@@ -1,4 +1,5 @@
 use hyper::{client::HttpConnector, Client as HyperClient};
+use twilight_cache_inmemory::{InMemoryCache, ResourceType};
 use twilight_http::{client::InteractionClient, Client as HttpClient};
 use twilight_model::id::{marker::ApplicationMarker, Id};
 
@@ -7,6 +8,7 @@ use crate::interactions;
 pub struct Context {
     pub http_client: HttpClient,
     pub hyper_client: HyperClient<HttpConnector>,
+    pub cache: InMemoryCache
 }
 
 impl Context {
@@ -14,9 +16,16 @@ impl Context {
         // Create http client
         let http_client = HttpClient::new(token);
 
+        let cache = InMemoryCache::builder()
+            .resource_types(ResourceType::MESSAGE | ResourceType::VOICE_STATE)
+            .build();
+
+        let user_id = http_client.current_user().await?.model().await?.id;
+
         Ok(Self {
             http_client,
             hyper_client: HyperClient::new(),
+            cache
         })
     }
 
