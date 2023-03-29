@@ -1,6 +1,9 @@
+use dashmap::DashMap;
 use hyper::{client::HttpConnector, Client as HyperClient};
 use twilight_cache_inmemory::{InMemoryCache, ResourceType};
+use twilight_gateway::{ShardId, MessageSender};
 use twilight_http::{client::InteractionClient, Client as HttpClient};
+use twilight_lavalink::Lavalink;
 use twilight_model::id::{marker::ApplicationMarker, Id};
 
 use crate::interactions;
@@ -8,7 +11,9 @@ use crate::interactions;
 pub struct Context {
     pub http_client: HttpClient,
     pub hyper_client: HyperClient<HttpConnector>,
-    pub cache: InMemoryCache
+    pub cache: InMemoryCache,
+    pub lavalink: Lavalink,
+    pub shard_senders: DashMap<ShardId, MessageSender>
 }
 
 impl Context {
@@ -22,10 +27,14 @@ impl Context {
 
         let user_id = http_client.current_user().await?.model().await?.id;
 
+        let lavalink = Lavalink::new(user_id, 1u64);
+
         Ok(Self {
             http_client,
             hyper_client: HyperClient::new(),
-            cache
+            cache,
+            lavalink,
+            shard_senders: DashMap::default()
         })
     }
 
@@ -55,7 +64,10 @@ impl Context {
                 &commands,
             )
             .await?;
-
         Ok(())
+    }
+
+    pub fn add_shard_message_sender(&self, shard_id: ShardId, sender: MessageSender) {
+        self.shard_senders.insert(shard_id, sender);
     }
 }
