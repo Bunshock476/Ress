@@ -3,16 +3,13 @@ use twilight_gateway::{
     stream::{self, ShardEventStream},
     Config, Event, Intents,
 };
-use twilight_http::{client::InteractionClient, Client};
-use twilight_model::{
-    application::{
-        command::CommandType,
-        interaction::{Interaction, InteractionData, InteractionType},
-    },
-    http::interaction::{InteractionResponse, InteractionResponseType},
-    id::Id,
-};
-use twilight_util::builder::{command::CommandBuilder, InteractionResponseDataBuilder};
+use twilight_http::client::InteractionClient;
+use twilight_model::application::interaction::{Interaction, InteractionData, InteractionType};
+
+mod context;
+mod interactions;
+
+use context::Context;
 
 // TODO: remove the dependencie on anyhow
 #[tokio::main]
@@ -29,31 +26,23 @@ async fn main() -> anyhow::Result<()> {
         | Intents::MESSAGE_CONTENT
         | Intents::GUILDS
         | Intents::GUILD_VOICE_STATES;
+
     let config = Config::new(token.clone(), intents);
 
-    // Create http client
-    let client = Client::new(token);
+    // Bot context for sharing data across tasks and accessing twilight clients and general setup
+    let ctx = Context::new(token).await?;
+
+    // Initialize the bot slash commands
+    ctx.setup_commands().await?;
 
     // Initialize shards (currently spawning discord's recommended number of shards, could be only one for small bots)
-    let mut shards = stream::create_recommended(&client, config, |_, builder| builder.build())
-        .await?
-        .collect::<Vec<_>>();
+    let mut shards =
+        stream::create_recommended(&ctx.http_client, config, |_, builder| builder.build())
+            .await?
+            .collect::<Vec<_>>();
 
     // Stream of shard events
     let mut stream = ShardEventStream::new(shards.iter_mut());
-
-    // Application/Slash command creation
-    // TODO: do it in a function and return a vec of commands
-    let test = CommandBuilder::new("hello-test", "Test command", CommandType::ChatInput).build();
-
-    // Inteaction client used to receive and respond to interactions
-    let interaction_client =
-        client.interaction(client.current_user_application().await?.model().await?.id);
-
-    // Application command registering (doing it per guild as doing it globally can take a couple of minutes)
-    interaction_client
-        .set_guild_commands(Id::new(std::env::var("TEST_GUILD")?.parse::<u64>()?), &[test])
-        .await?;
 
     // Initialize the loop to handle events
     while let Some((_shard, e)) = stream.next().await {
@@ -72,7 +61,7 @@ async fn main() -> anyhow::Result<()> {
 
         match event {
             Event::InteractionCreate(interaction) => {
-                interaction_handler(&interaction_client, interaction.0).await?
+                interaction_handler(&ctx.interaction_client().await?, interaction.0).await?
             }
             _ => {}
         }
@@ -90,35 +79,24 @@ async fn interaction_handler(
             if let Some(interaction_data) = &interaction.data {
                 match interaction_data {
                     InteractionData::ApplicationCommand(command_data) => {
-                        // TODO: match against a hashmap or vec of commands and handle the response on different module
-                        match command_data.name.as_str() {
-                            "hello-test" => {
-                                let response = InteractionResponse {
-                                    kind: InteractionResponseType::ChannelMessageWithSource,
-                                    data: Some(
-                                        InteractionResponseDataBuilder::new()
-                                            .content(format!(
-                                                "Hello {}",
-                                                interaction.author().unwrap().id
-                                            ))
-                                            .build(),
-                                    ),
-                                };
-
-                                interaction_client
-                                    .create_response(interaction.id, &interaction.token, &response)
-                                    .await?;
-                                Ok(())
+                        // Run the command and etrieve a response from the command caller
+                        let response = match command_data.name.as_str() {
+                            interactions::hello_test::NAME => {
+                                interactions::hello_test::run(&interaction).await?
                             }
                             _ => todo!("Custom error for non-existent commands"),
-                        }
+                        };
+
+                        interaction_client
+                            .create_response(interaction.id, &interaction.token, &response)
+                            .await?;
                     }
-                    _ => todo!(),
+                    _ => todo!("Handle other interaction types"),
                 }
-            } else {
-                Ok(())
             }
         }
-        _ => Ok(()),
+        _ => {}
     }
+
+    Ok(())
 }
