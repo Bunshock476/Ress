@@ -27,11 +27,11 @@ use crate::queue::TracksQueueError;
 // TODO: remove the dependencie on anyhow
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Initialize log tracer
-    tracing_subscriber::fmt::init();
-
     // Load environment variables from .env file
     dotenv::dotenv().expect(".env file");
+    
+    // Initialize log tracer
+    tracing_subscriber::fmt::init();
 
     // Initialize configurations
     let token = std::env::var("DISCORD_TOKEN")?;
