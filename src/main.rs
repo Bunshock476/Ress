@@ -122,6 +122,17 @@ async fn handle_interaction(
                                 interactions::leave::run(&interaction, ctx.clone(), shard_id)
                                     .await?
                             }
+                            interactions::play::NAME => {
+                                interactions::play::run(&interaction, ctx.clone())
+                                    .await?
+                            }
+                            interactions::pause::NAME => {
+                                interactions::pause::run(&interaction, ctx.clone())
+                                    .await?
+                            }
+                            interactions::resume::NAME => {
+                                interactions::resume::run(&interaction, ctx.clone()).await?
+                            }
                             _ => todo!("Custom error for non-existent commands"),
                         };
 

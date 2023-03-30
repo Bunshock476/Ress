@@ -11,8 +11,11 @@ use twilight_model::{
 };
 use twilight_util::builder::{command::CommandBuilder, InteractionResponseDataBuilder};
 
-use crate::{context::Context, interactions::errors::{InvalidGuildId, NoMessageSenderForShard}};
 use crate::interactions::errors::NoAuthorFound;
+use crate::{
+    context::Context,
+    interactions::errors::{InvalidGuildId, NoMessageSenderForShard},
+};
 
 pub const NAME: &str = "join";
 
@@ -25,8 +28,8 @@ pub async fn run(
     ctx: Arc<Context>,
     shard_id: ShardId,
 ) -> anyhow::Result<InteractionResponse> {
-    let guild_id = interaction.guild_id.ok_or(InvalidGuildId{})?;
-    
+    let guild_id = interaction.guild_id.ok_or(InvalidGuildId {})?;
+
     let author = interaction.author().ok_or(NoAuthorFound {})?;
 
     tracing::info!("Join command by {}", author.name);
@@ -47,7 +50,10 @@ pub async fn run(
 
     let channel_id = vc.channel_id();
 
-    let sender = ctx.shard_senders.get(&shard_id).ok_or(NoMessageSenderForShard{shard_id})?;
+    let sender = ctx
+        .shard_senders
+        .get(&shard_id)
+        .ok_or(NoMessageSenderForShard { shard_id })?;
 
     sender.command(&UpdateVoiceState::new(guild_id, channel_id, false, false))?;
 

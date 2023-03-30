@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use twilight_gateway::ShardId;
+use twilight_lavalink::model::Destroy;
 use twilight_model::{
     application::{
         command::{Command, CommandType},
@@ -42,6 +43,9 @@ pub async fn run(
             });
         }
     };
+
+    let player = ctx.lavalink.player(guild_id).await?;
+    player.send(Destroy::from(guild_id))?;
 
     let sender = ctx.shard_senders.get(&shard_id).unwrap();
 

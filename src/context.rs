@@ -59,6 +59,9 @@ impl Context {
             interactions::hello_test::command(),
             interactions::join::command(),
             interactions::leave::command(),
+            interactions::play::command(),
+            interactions::pause::command(),
+            interactions::resume::command(),
         ];
         // Application command registering (doing it per guild as doing it globally can take a couple of minutes)
         self.interaction_client()

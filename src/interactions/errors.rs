@@ -1,4 +1,4 @@
-use std::{fmt::Display, error::Error};
+use std::{error::Error, fmt::Display};
 
 use twilight_gateway::ShardId;
 
@@ -26,7 +26,7 @@ impl Error for InvalidGuildId {}
 
 #[derive(Debug)]
 pub struct NoMessageSenderForShard {
-    pub shard_id: ShardId
+    pub shard_id: ShardId,
 }
 
 impl Display for NoMessageSenderForShard {
