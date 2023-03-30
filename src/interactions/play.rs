@@ -146,6 +146,7 @@ pub async fn run(
         LoadType::SearchResult | LoadType::TrackLoaded => {
             let track = loaded.tracks.first().unwrap();
             let title = track.info.title.clone().unwrap_or("<Unknown>".to_string());
+            let uri = &track.info.uri;
             let author = track.info.author.clone().unwrap_or("<Unknown>".to_string());
 
             let queue_arc = ctx.get_or_create_queue(guild_id);
@@ -154,7 +155,7 @@ pub async fn run(
 
             embed_builder = embed_builder
                 .title("Track queued")
-                .description(format!("**{title}** by **{author}**"));
+                .description(format!("**[{}]({})** \n By **{}**", title, uri, author));
             player.send(Play::from((guild_id, &track.track)))?;
         }
         _ => todo!(),

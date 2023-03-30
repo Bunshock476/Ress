@@ -227,6 +227,7 @@ async fn handle_lavalink_events(
                         .title
                         .clone()
                         .unwrap_or("<Unknown>".to_string());
+                    let uri = &track.info().uri;
                     let author = track
                         .info()
                         .author
@@ -234,8 +235,7 @@ async fn handle_lavalink_events(
                         .unwrap_or("<Unknown>".to_string());
                     embed_builder = embed_builder
                         .title("Now playing".to_owned())
-                        //({player.current.uri})
-                        .description(format!("**{}** \n By **{}**", title, author))
+                        .description(format!("**[{}]({})** \n By **{}**", title, uri, author))
                 }
 
                 ctx.http_client
