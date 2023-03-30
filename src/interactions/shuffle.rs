@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use twilight_lavalink::model::Pause;
 use twilight_model::{
     application::{
         command::{Command, CommandType},
@@ -12,10 +11,10 @@ use twilight_util::builder::{command::CommandBuilder, InteractionResponseDataBui
 use crate::interactions::errors::NoAuthorFound;
 use crate::{context::Context, interactions::errors::InvalidGuildId};
 
-pub const NAME: &str = "pause";
+pub const NAME: &str = "shuffle";
 
 pub fn command() -> Command {
-    CommandBuilder::new("pause", "Pause the current track", CommandType::ChatInput).build()
+    CommandBuilder::new("shuffle", "Shuffle the queue", CommandType::ChatInput).build()
 }
 
 pub async fn run(
@@ -26,7 +25,7 @@ pub async fn run(
 
     let author = interaction.author().ok_or(NoAuthorFound {})?;
 
-    tracing::info!("Pause command by {}", author.name);
+    tracing::info!("Shuffle command by {}", author.name);
 
     let bot_id = ctx.http_client.current_user().await?.model().await?.id;
     match ctx.cache.voice_state(bot_id, guild_id) {
@@ -43,26 +42,41 @@ pub async fn run(
         }
     };
 
-    let player = ctx.lavalink.player(guild_id).await?;
-
-    if player.paused() {
-        Ok(InteractionResponse {
+    let queue_arc = match ctx.get_queue(guild_id) {
+        Some(arc) => arc,
+        None => {
+            return Ok(InteractionResponse {
+                kind: InteractionResponseType::ChannelMessageWithSource,
+                data: Some(
+                    InteractionResponseDataBuilder::new()
+                        .content(format!("No tracks queued"))
+                        .build(),
+                ),
+            })
+        }
+    };
+    
+    let queue = queue_arc.lock().unwrap();
+    if queue.is_empty() {
+        return Ok(InteractionResponse {
             kind: InteractionResponseType::ChannelMessageWithSource,
             data: Some(
                 InteractionResponseDataBuilder::new()
-                    .content(format!("Already paused"))
+                    .content("No tracks to shuffle")
                     .build(),
             ),
-        })
-    } else {
-        player.send(Pause::from((guild_id, true)))?;
-        Ok(InteractionResponse {
-            kind: InteractionResponseType::ChannelMessageWithSource,
-            data: Some(
-                InteractionResponseDataBuilder::new()
-                    .content(format!("Paused track"))
-                    .build(),
-            ),
-        })
+        });
     }
+
+    queue.shuffle();
+
+    Ok(InteractionResponse {
+        kind: InteractionResponseType::ChannelMessageWithSource,
+        data: Some(
+            InteractionResponseDataBuilder::new()
+                .content("Shuffled current queue")
+                .build(),
+        ),
+    })
+    
 }

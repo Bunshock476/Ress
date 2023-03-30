@@ -1,31 +1,27 @@
 use std::sync::Arc;
-
-use twilight_gateway::ShardId;
-use twilight_lavalink::model::Destroy;
+use twilight_lavalink::model::{Stop};
 use twilight_model::{
     application::{
         command::{Command, CommandType},
         interaction::Interaction,
     },
-    gateway::payload::outgoing::UpdateVoiceState,
     http::interaction::{InteractionResponse, InteractionResponseType},
 };
 use twilight_util::builder::{command::CommandBuilder, InteractionResponseDataBuilder};
 
-use crate::{context::Context, queue::TracksQueueError};
+use crate::context::Context;
 
-pub const NAME: &str = "leave";
+pub const NAME: &str = "skip";
 
 pub fn command() -> Command {
-    CommandBuilder::new("leave", "Leave a voice channel", CommandType::ChatInput).build()
+    CommandBuilder::new("skip", "Skips the current track", CommandType::ChatInput).build()
 }
 
 pub async fn run(
     interaction: &Interaction,
     ctx: Arc<Context>,
-    shard_id: ShardId,
 ) -> anyhow::Result<InteractionResponse> {
-    tracing::info!("Leave command by {}", interaction.author().unwrap().name);
+    tracing::info!("Skip command by {}", interaction.author().unwrap().name);
 
     let guild_id = interaction.guild_id.expect("Valid guild id");
 
@@ -45,24 +41,41 @@ pub async fn run(
     };
 
     let player = ctx.lavalink.player(guild_id).await?;
-    player.send(Destroy::from(guild_id))?;
 
-    let sender = ctx.shard_senders.get(&shard_id).unwrap();
+    let queue_arc = match ctx.get_queue(guild_id) {
+        Some(arc) => arc,
+        None => {
+            return Ok(InteractionResponse {
+                kind: InteractionResponseType::ChannelMessageWithSource,
+                data: Some(
+                    InteractionResponseDataBuilder::new()
+                        .content(format!("No tracks queued"))
+                        .build(),
+                ),
+            })
+        }
+    };
+    {
+        let queue = queue_arc.lock().unwrap();
+        if queue.is_empty() {
+            return Ok(InteractionResponse {
+                kind: InteractionResponseType::ChannelMessageWithSource,
+                data: Some(
+                    InteractionResponseDataBuilder::new()
+                        .content("No more tracks to skip")
+                        .build(),
+                ),
+            });
+        }
 
-    sender.command(&UpdateVoiceState::new(guild_id, None, false, false))?;
-
-    // Clear queue
-    ctx.get_queue(guild_id)
-        .ok_or(TracksQueueError::NoQueueFound(guild_id))?
-        .lock()
-        .unwrap()
-        .clear();
+        player.send(Stop::from(guild_id))?;
+    }
 
     Ok(InteractionResponse {
         kind: InteractionResponseType::ChannelMessageWithSource,
         data: Some(
             InteractionResponseDataBuilder::new()
-                .content(format!("Left channel"))
+                .content(format!("Skipped current track"))
                 .build(),
         ),
     })

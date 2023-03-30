@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
-use hyper::{Request, Body};
-use twilight_lavalink::{http::{LoadType, LoadedTracks}, model::Play};
+use hyper::{Body, Request};
+use twilight_lavalink::{
+    http::{LoadType, LoadedTracks},
+    model::Play,
+};
 use twilight_model::{
     application::{
         command::{Command, CommandOption, CommandOptionType, CommandType},
@@ -9,13 +12,12 @@ use twilight_model::{
     },
     http::interaction::{InteractionResponse, InteractionResponseType},
 };
-use twilight_util::builder::{command::CommandBuilder, InteractionResponseDataBuilder};
+use twilight_util::builder::{
+    command::CommandBuilder, embed::EmbedBuilder, InteractionResponseDataBuilder,
+};
 
 use crate::interactions::errors::NoAuthorFound;
-use crate::{
-    context::Context,
-    interactions::errors::{InvalidGuildId},
-};
+use crate::{context::Context, interactions::errors::InvalidGuildId};
 
 pub const NAME: &str = "play";
 
@@ -46,7 +48,7 @@ pub fn command() -> Command {
 
 pub async fn run(
     interaction: &Interaction,
-    ctx: Arc<Context>
+    ctx: Arc<Context>,
 ) -> anyhow::Result<InteractionResponse> {
     let guild_id = interaction.guild_id.ok_or(InvalidGuildId {})?;
 
@@ -114,19 +116,45 @@ pub async fn run(
 
     let loaded = serde_json::from_slice::<LoadedTracks>(&res_bytes)?;
 
+    let channel_id = interaction
+        .channel_id
+        .expect("Interaction from valid channel");
+
+    let mut embed_builder = EmbedBuilder::new().color(0xe04f2e);
+
     match loaded.load_type {
-        LoadType::LoadFailed => {
-            todo!()
-        }
+        LoadType::LoadFailed => embed_builder = embed_builder.title("Failed to load track"),
         LoadType::NoMatches => {
-            todo!()
+            embed_builder = embed_builder.title("No results found");
         }
         LoadType::PlaylistLoaded => {
-            todo!()
+            let queue_arc = ctx.get_or_create_queue(guild_id);
+            let queue = queue_arc.lock().unwrap();
+            for track in loaded.tracks {
+                queue.push(crate::track::Track::new(track.clone(), channel_id));
+            }
+
+            let first = queue.peek()?;
+
+            embed_builder = embed_builder.title("Loaded playlist").description(format!(
+                "**{}**",
+                loaded.playlist_info.name.unwrap_or("<Unknown>".to_string())
+            ));
+
+            player.send(Play::from((guild_id, &first.track())))?;
         }
         LoadType::SearchResult | LoadType::TrackLoaded => {
-            
             let track = loaded.tracks.first().unwrap();
+            let title = track.info.title.clone().unwrap_or("<Unknown>".to_string());
+            let author = track.info.author.clone().unwrap_or("<Unknown>".to_string());
+
+            let queue_arc = ctx.get_or_create_queue(guild_id);
+            let queue = queue_arc.lock().unwrap();
+            queue.push(crate::track::Track::new(track.clone(), channel_id));
+
+            embed_builder = embed_builder
+                .title("Track queued")
+                .description(format!("**{title}** by **{author}**"));
             player.send(Play::from((guild_id, &track.track)))?;
         }
         _ => todo!(),
@@ -136,7 +164,7 @@ pub async fn run(
         kind: InteractionResponseType::ChannelMessageWithSource,
         data: Some(
             InteractionResponseDataBuilder::new()
-                .content(format!("Added to queue"))
+                .embeds(vec![embed_builder.build()])
                 .build(),
         ),
     })

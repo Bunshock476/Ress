@@ -1,12 +1,17 @@
+use std::sync::{Arc, Mutex};
+
 use dashmap::DashMap;
 use hyper::{client::HttpConnector, Client as HyperClient};
 use twilight_cache_inmemory::{InMemoryCache, ResourceType};
 use twilight_gateway::{MessageSender, ShardId};
 use twilight_http::{client::InteractionClient, Client as HttpClient};
 use twilight_lavalink::Lavalink;
-use twilight_model::id::{marker::ApplicationMarker, Id};
+use twilight_model::id::{
+    marker::{ApplicationMarker, GuildMarker},
+    Id,
+};
 
-use crate::interactions;
+use crate::{interactions, queue::TracksQueue};
 
 pub struct Context {
     pub http_client: HttpClient,
@@ -14,6 +19,7 @@ pub struct Context {
     pub cache: InMemoryCache,
     pub lavalink: Lavalink,
     pub shard_senders: DashMap<ShardId, MessageSender>,
+    pub queues: DashMap<Id<GuildMarker>, Arc<Mutex<TracksQueue>>>,
 }
 
 impl Context {
@@ -35,6 +41,7 @@ impl Context {
             cache,
             lavalink,
             shard_senders: DashMap::default(),
+            queues: DashMap::default(),
         })
     }
 
@@ -62,6 +69,9 @@ impl Context {
             interactions::play::command(),
             interactions::pause::command(),
             interactions::resume::command(),
+            interactions::stop::command(),
+            interactions::skip::command(),
+            interactions::shuffle::command(),
         ];
         // Application command registering (doing it per guild as doing it globally can take a couple of minutes)
         self.interaction_client()
@@ -76,5 +86,18 @@ impl Context {
 
     pub fn add_shard_message_sender(&self, shard_id: ShardId, sender: MessageSender) {
         self.shard_senders.insert(shard_id, sender);
+    }
+
+    pub fn get_queue(&self, guild_id: Id<GuildMarker>) -> Option<Arc<Mutex<TracksQueue>>> {
+        self.queues.get(&guild_id).map(|mapref| Arc::clone(&mapref))
+    }
+
+    pub fn get_or_create_queue(&self, guild_id: Id<GuildMarker>) -> Arc<Mutex<TracksQueue>> {
+        self.get_queue(guild_id).unwrap_or(
+            self.queues
+                .entry(guild_id)
+                .or_insert(Arc::new(Mutex::new(TracksQueue::new())))
+                .clone(),
+        )
     }
 }

@@ -1,29 +1,21 @@
 use std::sync::Arc;
-use twilight_lavalink::{model::{Pause}};
+use twilight_lavalink::model::Pause;
 use twilight_model::{
     application::{
         command::{Command, CommandType},
-        interaction::{Interaction},
+        interaction::Interaction,
     },
     http::interaction::{InteractionResponse, InteractionResponseType},
 };
 use twilight_util::builder::{command::CommandBuilder, InteractionResponseDataBuilder};
 
 use crate::interactions::errors::NoAuthorFound;
-use crate::{
-    context::Context,
-    interactions::errors::{InvalidGuildId},
-};
+use crate::{context::Context, interactions::errors::InvalidGuildId};
 
 pub const NAME: &str = "resume";
 
 pub fn command() -> Command {
-    CommandBuilder::new(
-        "resume",
-        "Resume the current track",
-        CommandType::ChatInput,
-    )
-    .build()
+    CommandBuilder::new("resume", "Resume the current track", CommandType::ChatInput).build()
 }
 
 pub async fn run(
@@ -72,5 +64,5 @@ pub async fn run(
                     .build(),
             ),
         })
-    }   
+    }
 }

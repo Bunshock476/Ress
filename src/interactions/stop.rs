@@ -1,31 +1,27 @@
 use std::sync::Arc;
-
-use twilight_gateway::ShardId;
-use twilight_lavalink::model::Destroy;
+use twilight_lavalink::model::Stop;
 use twilight_model::{
     application::{
         command::{Command, CommandType},
         interaction::Interaction,
     },
-    gateway::payload::outgoing::UpdateVoiceState,
     http::interaction::{InteractionResponse, InteractionResponseType},
 };
 use twilight_util::builder::{command::CommandBuilder, InteractionResponseDataBuilder};
 
 use crate::{context::Context, queue::TracksQueueError};
 
-pub const NAME: &str = "leave";
+pub const NAME: &str = "stop";
 
 pub fn command() -> Command {
-    CommandBuilder::new("leave", "Leave a voice channel", CommandType::ChatInput).build()
+    CommandBuilder::new("stop", "Stop and clears the queue", CommandType::ChatInput).build()
 }
 
 pub async fn run(
     interaction: &Interaction,
     ctx: Arc<Context>,
-    shard_id: ShardId,
 ) -> anyhow::Result<InteractionResponse> {
-    tracing::info!("Leave command by {}", interaction.author().unwrap().name);
+    tracing::info!("Stop command by {}", interaction.author().unwrap().name);
 
     let guild_id = interaction.guild_id.expect("Valid guild id");
 
@@ -45,11 +41,7 @@ pub async fn run(
     };
 
     let player = ctx.lavalink.player(guild_id).await?;
-    player.send(Destroy::from(guild_id))?;
-
-    let sender = ctx.shard_senders.get(&shard_id).unwrap();
-
-    sender.command(&UpdateVoiceState::new(guild_id, None, false, false))?;
+    player.send(Stop::from(guild_id))?;
 
     // Clear queue
     ctx.get_queue(guild_id)
@@ -62,7 +54,7 @@ pub async fn run(
         kind: InteractionResponseType::ChannelMessageWithSource,
         data: Some(
             InteractionResponseDataBuilder::new()
-                .content(format!("Left channel"))
+                .content(format!("Stopped current tracks"))
                 .build(),
         ),
     })
