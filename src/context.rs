@@ -72,6 +72,8 @@ impl Context {
             interactions::stop::command(),
             interactions::skip::command(),
             interactions::shuffle::command(),
+            interactions::queue::command(),
+            interactions::now_playing::command(),
         ];
         // Application command registering (doing it per guild as doing it globally can take a couple of minutes)
         self.interaction_client()

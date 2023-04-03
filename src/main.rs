@@ -18,6 +18,7 @@ mod context;
 mod interactions;
 mod queue;
 mod track;
+mod utils;
 
 use context::Context;
 use twilight_util::builder::embed::EmbedBuilder;
@@ -29,7 +30,7 @@ use crate::queue::TracksQueueError;
 async fn main() -> anyhow::Result<()> {
     // Load environment variables from .env file
     dotenv::dotenv().expect(".env file");
-    
+
     // Initialize log tracer
     tracing_subscriber::fmt::init();
 
@@ -154,6 +155,12 @@ async fn handle_interaction(
                             }
                             interactions::shuffle::NAME => {
                                 interactions::shuffle::run(&interaction, ctx.clone()).await?
+                            }
+                            interactions::queue::NAME => {
+                                interactions::queue::run(&interaction, ctx.clone()).await?
+                            }
+                            interactions::now_playing::NAME => {
+                                interactions::now_playing::run(&interaction, ctx.clone()).await?
                             }
                             _ => todo!("Custom error for non-existent commands"),
                         };

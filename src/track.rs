@@ -1,7 +1,7 @@
 use twilight_lavalink::http::{Track as TwilightTrack, TrackInfo};
 use twilight_model::id::{marker::ChannelMarker, Id};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Track {
     inner: TwilightTrack,
     pub channel_id: Id<ChannelMarker>,
