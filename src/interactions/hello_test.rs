@@ -1,11 +1,13 @@
-use twilight_model::{
-    application::{
-        command::{Command, CommandOption, CommandOptionType, CommandType},
-        interaction::{application_command::CommandOptionValue, Interaction, InteractionData},
-    },
-    http::interaction::{InteractionResponse, InteractionResponseType},
+use std::sync::Arc;
+
+use twilight_gateway::ShardId;
+use twilight_model::application::{
+    command::{Command, CommandOption, CommandOptionType, CommandType},
+    interaction::{application_command::CommandOptionValue, Interaction, InteractionData},
 };
-use twilight_util::builder::{command::CommandBuilder, InteractionResponseDataBuilder};
+use twilight_util::builder::command::CommandBuilder;
+
+use crate::context::Context;
 
 pub const NAME: &str = "hello-test";
 
@@ -30,7 +32,11 @@ pub fn command() -> Command {
         .build()
 }
 
-pub async fn run(interaction: &Interaction) -> anyhow::Result<InteractionResponse> {
+pub async fn run(
+    interaction: &Interaction,
+    ctx: Arc<Context>,
+    _shard_id: ShardId,
+) -> anyhow::Result<()> {
     let options = {
         if let Some(InteractionData::ApplicationCommand(data)) = &interaction.data {
             &data.options
@@ -44,14 +50,6 @@ pub async fn run(interaction: &Interaction) -> anyhow::Result<InteractionRespons
         _ => "".to_string(),
     };
 
-    let response = InteractionResponse {
-        kind: InteractionResponseType::ChannelMessageWithSource,
-        data: Some(
-            InteractionResponseDataBuilder::new()
-                .content(format!("Hello {}", name))
-                .build(),
-        ),
-    };
-
-    Ok(response)
+    ctx.send_message_response(interaction, format!("Hello {}", name))
+        .await
 }

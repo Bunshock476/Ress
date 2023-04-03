@@ -8,9 +8,8 @@ use twilight_model::{
         interaction::Interaction,
     },
     gateway::payload::outgoing::UpdateVoiceState,
-    http::interaction::{InteractionResponse, InteractionResponseType},
 };
-use twilight_util::builder::{command::CommandBuilder, InteractionResponseDataBuilder};
+use twilight_util::builder::command::CommandBuilder;
 
 use crate::{context::Context, queue::TracksQueueError};
 
@@ -24,7 +23,7 @@ pub async fn run(
     interaction: &Interaction,
     ctx: Arc<Context>,
     shard_id: ShardId,
-) -> anyhow::Result<InteractionResponse> {
+) -> anyhow::Result<()> {
     tracing::info!("Leave command by {}", interaction.author().unwrap().name);
 
     let guild_id = interaction.guild_id.expect("Valid guild id");
@@ -33,14 +32,9 @@ pub async fn run(
     match ctx.cache.voice_state(bot_id, guild_id) {
         Some(vc) => vc,
         None => {
-            return Ok(InteractionResponse {
-                kind: InteractionResponseType::ChannelMessageWithSource,
-                data: Some(
-                    InteractionResponseDataBuilder::new()
-                        .content("Im not in a voice channel")
-                        .build(),
-                ),
-            });
+            return ctx
+                .send_message_response(interaction, "Im not in a voice channel")
+                .await;
         }
     };
 
@@ -58,12 +52,5 @@ pub async fn run(
         .unwrap()
         .clear();
 
-    Ok(InteractionResponse {
-        kind: InteractionResponseType::ChannelMessageWithSource,
-        data: Some(
-            InteractionResponseDataBuilder::new()
-                .content(format!("Left channel"))
-                .build(),
-        ),
-    })
+    ctx.send_message_response(interaction, "Left channel").await
 }

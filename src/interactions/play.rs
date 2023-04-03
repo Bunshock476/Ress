@@ -1,20 +1,16 @@
 use std::sync::Arc;
 
 use hyper::{Body, Request};
+use twilight_gateway::ShardId;
 use twilight_lavalink::{
     http::{LoadType, LoadedTracks},
     model::Play,
 };
-use twilight_model::{
-    application::{
-        command::{Command, CommandOption, CommandOptionType, CommandType},
-        interaction::{application_command::CommandOptionValue, Interaction, InteractionData},
-    },
-    http::interaction::{InteractionResponse, InteractionResponseType},
+use twilight_model::application::{
+    command::{Command, CommandOption, CommandOptionType, CommandType},
+    interaction::{application_command::CommandOptionValue, Interaction, InteractionData},
 };
-use twilight_util::builder::{
-    command::CommandBuilder, embed::EmbedBuilder, InteractionResponseDataBuilder,
-};
+use twilight_util::builder::{command::CommandBuilder, embed::EmbedBuilder};
 
 use crate::interactions::errors::NoAuthorFound;
 use crate::{context::Context, interactions::errors::InvalidGuildId};
@@ -49,7 +45,8 @@ pub fn command() -> Command {
 pub async fn run(
     interaction: &Interaction,
     ctx: Arc<Context>,
-) -> anyhow::Result<InteractionResponse> {
+    _shard_id: ShardId,
+) -> anyhow::Result<()> {
     let guild_id = interaction.guild_id.ok_or(InvalidGuildId {})?;
 
     let author = interaction.author().ok_or(NoAuthorFound {})?;
@@ -60,14 +57,9 @@ pub async fn run(
     match ctx.cache.voice_state(bot_id, guild_id) {
         Some(vc) => vc,
         None => {
-            return Ok(InteractionResponse {
-                kind: InteractionResponseType::ChannelMessageWithSource,
-                data: Some(
-                    InteractionResponseDataBuilder::new()
-                        .content("Im not in a voice channel")
-                        .build(),
-                ),
-            });
+            return ctx
+                .send_message_response(interaction, "Im not in a voice channel")
+                .await;
         }
     };
 
@@ -81,25 +73,14 @@ pub async fn run(
 
     let q = match &options[0].value {
         CommandOptionValue::String(n) => n.clone(),
-        _ => "".to_string(),
+        _ => anyhow::bail!("Option value should have been a string"),
     };
 
-    let query: String;
-
-    if q.is_empty() {
-        return Ok(InteractionResponse {
-            kind: InteractionResponseType::ChannelMessageWithSource,
-            data: Some(
-                InteractionResponseDataBuilder::new()
-                    .content("Error: query is empty")
-                    .build(),
-            ),
-        });
-    } else if q.starts_with("http") {
-        query = q.to_string();
+    let query = if q.starts_with("http") {
+        q.to_string()
     } else {
-        query = format!("ytsearch:{}", q);
-    }
+        format!("ytsearch:{}", q)
+    };
 
     let player = ctx.lavalink.player(guild_id).await?;
 
@@ -118,7 +99,7 @@ pub async fn run(
 
     let channel_id = interaction
         .channel_id
-        .expect("Interaction from valid channel");
+        .ok_or(anyhow::anyhow!("Invalid channel id"))?;
 
     let mut embed_builder = EmbedBuilder::new().color(0xe04f2e);
 
@@ -161,12 +142,6 @@ pub async fn run(
         _ => todo!(),
     }
 
-    Ok(InteractionResponse {
-        kind: InteractionResponseType::ChannelMessageWithSource,
-        data: Some(
-            InteractionResponseDataBuilder::new()
-                .embeds(vec![embed_builder.build()])
-                .build(),
-        ),
-    })
+    ctx.send_embed_response(interaction, embed_builder.build())
+        .await
 }

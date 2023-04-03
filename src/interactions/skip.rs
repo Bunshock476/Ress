@@ -1,13 +1,11 @@
 use std::sync::Arc;
+use twilight_gateway::ShardId;
 use twilight_lavalink::model::Stop;
-use twilight_model::{
-    application::{
-        command::{Command, CommandType},
-        interaction::Interaction,
-    },
-    http::interaction::{InteractionResponse, InteractionResponseType},
+use twilight_model::application::{
+    command::{Command, CommandType},
+    interaction::Interaction,
 };
-use twilight_util::builder::{command::CommandBuilder, InteractionResponseDataBuilder};
+use twilight_util::builder::command::CommandBuilder;
 
 use crate::context::Context;
 
@@ -20,7 +18,8 @@ pub fn command() -> Command {
 pub async fn run(
     interaction: &Interaction,
     ctx: Arc<Context>,
-) -> anyhow::Result<InteractionResponse> {
+    _shard_id: ShardId,
+) -> anyhow::Result<()> {
     tracing::info!("Skip command by {}", interaction.author().unwrap().name);
 
     let guild_id = interaction.guild_id.expect("Valid guild id");
@@ -29,14 +28,9 @@ pub async fn run(
     match ctx.cache.voice_state(bot_id, guild_id) {
         Some(vc) => vc,
         None => {
-            return Ok(InteractionResponse {
-                kind: InteractionResponseType::ChannelMessageWithSource,
-                data: Some(
-                    InteractionResponseDataBuilder::new()
-                        .content("Im not in a voice channel")
-                        .build(),
-                ),
-            });
+            return ctx
+                .send_message_response(interaction, "Im not in a voice channel")
+                .await;
         }
     };
 
@@ -45,38 +39,28 @@ pub async fn run(
     let queue_arc = match ctx.get_queue(guild_id) {
         Some(arc) => arc,
         None => {
-            return Ok(InteractionResponse {
-                kind: InteractionResponseType::ChannelMessageWithSource,
-                data: Some(
-                    InteractionResponseDataBuilder::new()
-                        .content(format!("No tracks queued"))
-                        .build(),
-                ),
-            })
+            return ctx
+                .send_message_response(interaction, "No tracks queued")
+                .await;
         }
     };
+
+    // Workaraound to not await while holding a lock to queue
+    let mut empty_queue = false;
     {
         let queue = queue_arc.lock().unwrap();
-        if queue.is_empty() {
-            return Ok(InteractionResponse {
-                kind: InteractionResponseType::ChannelMessageWithSource,
-                data: Some(
-                    InteractionResponseDataBuilder::new()
-                        .content("No more tracks to skip")
-                        .build(),
-                ),
-            });
+        if !queue.is_empty() {
+            player.send(Stop::from(guild_id))?;
+        } else {
+            empty_queue = true;
         }
-
-        player.send(Stop::from(guild_id))?;
     }
 
-    Ok(InteractionResponse {
-        kind: InteractionResponseType::ChannelMessageWithSource,
-        data: Some(
-            InteractionResponseDataBuilder::new()
-                .content(format!("Skipped current track"))
-                .build(),
-        ),
-    })
+    if empty_queue {
+        ctx.send_message_response(interaction, "No more tracks to skip")
+            .await
+    } else {
+        ctx.send_message_response(interaction, "Skipped current track")
+            .await
+    }
 }

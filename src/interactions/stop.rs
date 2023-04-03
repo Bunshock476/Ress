@@ -1,13 +1,11 @@
 use std::sync::Arc;
+use twilight_gateway::ShardId;
 use twilight_lavalink::model::Stop;
-use twilight_model::{
-    application::{
-        command::{Command, CommandType},
-        interaction::Interaction,
-    },
-    http::interaction::{InteractionResponse, InteractionResponseType},
+use twilight_model::application::{
+    command::{Command, CommandType},
+    interaction::Interaction,
 };
-use twilight_util::builder::{command::CommandBuilder, InteractionResponseDataBuilder};
+use twilight_util::builder::command::CommandBuilder;
 
 use crate::{context::Context, queue::TracksQueueError};
 
@@ -20,7 +18,8 @@ pub fn command() -> Command {
 pub async fn run(
     interaction: &Interaction,
     ctx: Arc<Context>,
-) -> anyhow::Result<InteractionResponse> {
+    _shard_id: ShardId,
+) -> anyhow::Result<()> {
     tracing::info!("Stop command by {}", interaction.author().unwrap().name);
 
     let guild_id = interaction.guild_id.expect("Valid guild id");
@@ -29,14 +28,9 @@ pub async fn run(
     match ctx.cache.voice_state(bot_id, guild_id) {
         Some(vc) => vc,
         None => {
-            return Ok(InteractionResponse {
-                kind: InteractionResponseType::ChannelMessageWithSource,
-                data: Some(
-                    InteractionResponseDataBuilder::new()
-                        .content("Im not in a voice channel")
-                        .build(),
-                ),
-            });
+            return ctx
+                .send_message_response(interaction, "Im not in a voice channel")
+                .await;
         }
     };
 
@@ -50,12 +44,6 @@ pub async fn run(
         .unwrap()
         .clear();
 
-    Ok(InteractionResponse {
-        kind: InteractionResponseType::ChannelMessageWithSource,
-        data: Some(
-            InteractionResponseDataBuilder::new()
-                .content(format!("Stopped current tracks"))
-                .build(),
-        ),
-    })
+    ctx.send_message_response(interaction, "Stopped current queue")
+        .await
 }

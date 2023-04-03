@@ -127,54 +127,59 @@ async fn handle_interaction(
                 match interaction_data {
                     InteractionData::ApplicationCommand(command_data) => {
                         // Run the command and retrieve a response from the command caller
-                        let response = match command_data.name.as_str() {
+                        match command_data.name.as_str() {
                             interactions::hello_test::NAME => {
-                                interactions::hello_test::run(&interaction).await?
+                                interactions::hello_test::run(&interaction, ctx.clone(), shard_id)
+                                    .await?;
                             }
                             interactions::join::NAME => {
-                                interactions::join::run(&interaction, ctx.clone(), shard_id).await?
+                                interactions::join::run(&interaction, ctx.clone(), shard_id)
+                                    .await?;
                             }
                             interactions::leave::NAME => {
                                 interactions::leave::run(&interaction, ctx.clone(), shard_id)
-                                    .await?
+                                    .await?;
                             }
                             interactions::play::NAME => {
-                                interactions::play::run(&interaction, ctx.clone()).await?
+                                interactions::play::run(&interaction, ctx.clone(), shard_id)
+                                    .await?;
                             }
                             interactions::pause::NAME => {
-                                interactions::pause::run(&interaction, ctx.clone()).await?
+                                interactions::pause::run(&interaction, ctx.clone(), shard_id)
+                                    .await?;
                             }
                             interactions::resume::NAME => {
-                                interactions::resume::run(&interaction, ctx.clone()).await?
+                                interactions::resume::run(&interaction, ctx.clone(), shard_id)
+                                    .await?;
                             }
                             interactions::stop::NAME => {
-                                interactions::stop::run(&interaction, ctx.clone()).await?
+                                interactions::stop::run(&interaction, ctx.clone(), shard_id)
+                                    .await?;
                             }
                             interactions::skip::NAME => {
-                                interactions::skip::run(&interaction, ctx.clone()).await?
+                                interactions::skip::run(&interaction, ctx.clone(), shard_id)
+                                    .await?;
                             }
                             interactions::shuffle::NAME => {
-                                interactions::shuffle::run(&interaction, ctx.clone()).await?
+                                interactions::shuffle::run(&interaction, ctx.clone(), shard_id)
+                                    .await?;
                             }
                             interactions::queue::NAME => {
-                                interactions::queue::run(&interaction, ctx.clone()).await?
+                                interactions::queue::run(&interaction, ctx.clone(), shard_id)
+                                    .await?;
                             }
                             interactions::now_playing::NAME => {
-                                interactions::now_playing::run(&interaction, ctx.clone()).await?
+                                interactions::now_playing::run(&interaction, ctx.clone(), shard_id)
+                                    .await?;
                             }
                             _ => todo!("Custom error for non-existent commands"),
                         };
-
-                        ctx.interaction_client()
-                            .await?
-                            .create_response(interaction.id, &interaction.token, &response)
-                            .await?;
                     }
                     _ => todo!("Handle other interaction types"),
                 }
             }
         }
-        _ => {}
+        _ => todo!("Handle other interaction types"),
     }
 
     Ok(())

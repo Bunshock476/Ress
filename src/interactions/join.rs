@@ -7,9 +7,8 @@ use twilight_model::{
         interaction::Interaction,
     },
     gateway::payload::outgoing::UpdateVoiceState,
-    http::interaction::{InteractionResponse, InteractionResponseType},
 };
-use twilight_util::builder::{command::CommandBuilder, InteractionResponseDataBuilder};
+use twilight_util::builder::command::CommandBuilder;
 
 use crate::interactions::errors::NoAuthorFound;
 use crate::{
@@ -27,7 +26,7 @@ pub async fn run(
     interaction: &Interaction,
     ctx: Arc<Context>,
     shard_id: ShardId,
-) -> anyhow::Result<InteractionResponse> {
+) -> anyhow::Result<()> {
     let guild_id = interaction.guild_id.ok_or(InvalidGuildId {})?;
 
     let author = interaction.author().ok_or(NoAuthorFound {})?;
@@ -37,14 +36,12 @@ pub async fn run(
     let vc = match ctx.cache.voice_state(author.id, guild_id) {
         Some(vc) => vc,
         None => {
-            return Ok(InteractionResponse {
-                kind: InteractionResponseType::ChannelMessageWithSource,
-                data: Some(
-                    InteractionResponseDataBuilder::new()
-                        .content("You need to be in a voice channel to use this command")
-                        .build(),
-                ),
-            });
+            return ctx
+                .send_message_response(
+                    interaction,
+                    "You need to be in a voice channel to use this command",
+                )
+                .await;
         }
     };
 
@@ -57,12 +54,6 @@ pub async fn run(
 
     sender.command(&UpdateVoiceState::new(guild_id, channel_id, false, false))?;
 
-    Ok(InteractionResponse {
-        kind: InteractionResponseType::ChannelMessageWithSource,
-        data: Some(
-            InteractionResponseDataBuilder::new()
-                .content(format!("Joined <#{channel_id}>"))
-                .build(),
-        ),
-    })
+    ctx.send_message_response(interaction, format!("Joined <#{}>", channel_id))
+        .await
 }

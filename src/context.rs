@@ -6,10 +6,16 @@ use twilight_cache_inmemory::{InMemoryCache, ResourceType};
 use twilight_gateway::{MessageSender, ShardId};
 use twilight_http::{client::InteractionClient, Client as HttpClient};
 use twilight_lavalink::Lavalink;
-use twilight_model::id::{
-    marker::{ApplicationMarker, GuildMarker},
-    Id,
+use twilight_model::{
+    application::interaction::Interaction,
+    channel::message::Embed,
+    http::interaction::{InteractionResponse, InteractionResponseType},
+    id::{
+        marker::{ApplicationMarker, GuildMarker},
+        Id,
+    },
 };
+use twilight_util::builder::InteractionResponseDataBuilder;
 
 use crate::{interactions, queue::TracksQueue};
 
@@ -101,5 +107,49 @@ impl Context {
                 .or_insert(Arc::new(Mutex::new(TracksQueue::new())))
                 .clone(),
         )
+    }
+
+    pub async fn send_message_response(
+        &self,
+        interaction: &Interaction,
+        content: impl Into<String>,
+    ) -> anyhow::Result<()> {
+        let response = InteractionResponse {
+            kind: InteractionResponseType::ChannelMessageWithSource,
+            data: Some(
+                InteractionResponseDataBuilder::new()
+                    .content(content)
+                    .build(),
+            ),
+        };
+
+        self.interaction_client()
+            .await?
+            .create_response(interaction.id, &interaction.token, &response)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn send_embed_response(
+        &self,
+        interaction: &Interaction,
+        embed: Embed,
+    ) -> anyhow::Result<()> {
+        let response = InteractionResponse {
+            kind: InteractionResponseType::ChannelMessageWithSource,
+            data: Some(
+                InteractionResponseDataBuilder::new()
+                    .embeds(vec![embed])
+                    .build(),
+            ),
+        };
+
+        self.interaction_client()
+            .await?
+            .create_response(interaction.id, &interaction.token, &response)
+            .await?;
+
+        Ok(())
     }
 }

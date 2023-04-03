@@ -1,15 +1,12 @@
 use std::sync::Arc;
-use twilight_model::{
-    application::{
-        command::{Command, CommandOption, CommandOptionType, CommandType},
-        interaction::{application_command::CommandOptionValue, Interaction, InteractionData},
-    },
-    http::interaction::{InteractionResponse, InteractionResponseType},
+use twilight_gateway::ShardId;
+use twilight_model::application::{
+    command::{Command, CommandOption, CommandOptionType, CommandType},
+    interaction::{application_command::CommandOptionValue, Interaction, InteractionData},
 };
 use twilight_util::builder::{
     command::CommandBuilder,
     embed::{EmbedBuilder, EmbedFieldBuilder, EmbedFooterBuilder},
-    InteractionResponseDataBuilder,
 };
 
 use crate::{context::Context, utils::from_millis_to_minutes};
@@ -40,7 +37,8 @@ pub fn command() -> Command {
 pub async fn run(
     interaction: &Interaction,
     ctx: Arc<Context>,
-) -> anyhow::Result<InteractionResponse> {
+    _shard_id: ShardId,
+) -> anyhow::Result<()> {
     tracing::debug!("Queue command by {}", interaction.author().unwrap().name);
 
     let guild_id = interaction.guild_id.expect("Valid guild id");
@@ -49,14 +47,9 @@ pub async fn run(
     match ctx.cache.voice_state(bot_id, guild_id) {
         Some(vc) => vc,
         None => {
-            return Ok(InteractionResponse {
-                kind: InteractionResponseType::ChannelMessageWithSource,
-                data: Some(
-                    InteractionResponseDataBuilder::new()
-                        .content("Im not in a voice channel")
-                        .build(),
-                ),
-            });
+            return ctx
+                .send_message_response(interaction, "Im not in a voice channel")
+                .await;
         }
     };
 
@@ -71,25 +64,18 @@ pub async fn run(
 
     let page = if options.is_empty() {
         1
+    } else if let CommandOptionValue::Integer(i) = options[0].value {
+        i as usize
     } else {
-        if let CommandOptionValue::Integer(i) = options[0].value {
-            i as usize
-        } else {
-            1
-        }
+        1
     };
 
     let queue_arc = match ctx.get_queue(guild_id) {
         Some(arc) => arc,
         None => {
-            return Ok(InteractionResponse {
-                kind: InteractionResponseType::ChannelMessageWithSource,
-                data: Some(
-                    InteractionResponseDataBuilder::new()
-                        .content(format!("No tracks queued"))
-                        .build(),
-                ),
-            })
+            return ctx
+                .send_message_response(interaction, "No tracks queued")
+                .await;
         }
     };
 
@@ -100,27 +86,20 @@ pub async fn run(
     let num_pages = (queue.len() as f32 / max_tracks_per_page as f32).ceil() as usize;
 
     if queue.is_empty() {
-        return Ok(InteractionResponse {
-            kind: InteractionResponseType::ChannelMessageWithSource,
-            data: Some(
-                InteractionResponseDataBuilder::new()
-                    .content("The queue is empty")
-                    .build(),
-            ),
-        });
+        return ctx
+            .send_message_response(interaction, "The queue is empty")
+            .await;
     }
-    if page <= 0 || page > num_pages {
-        return Ok(InteractionResponse {
-            kind: InteractionResponseType::ChannelMessageWithSource,
-            data: Some(
-                InteractionResponseDataBuilder::new()
-                    .content(format!(
-                        "Page out of bounds, use a value between 1 and {}",
-                        num_pages
-                    ))
-                    .build(),
-            ),
-        });
+    if page < 1 || page > num_pages {
+        return ctx
+            .send_message_response(
+                interaction,
+                format!(
+                    "Page out of bounds, use a value between 1 and {}",
+                    num_pages
+                ),
+            )
+            .await;
     }
 
     let mut embed_builder = EmbedBuilder::new()
@@ -176,12 +155,6 @@ pub async fn run(
         }
     }
 
-    Ok(InteractionResponse {
-        kind: InteractionResponseType::ChannelMessageWithSource,
-        data: Some(
-            InteractionResponseDataBuilder::new()
-                .embeds(vec![embed_builder.build()])
-                .build(),
-        ),
-    })
+    ctx.send_embed_response(interaction, embed_builder.build())
+        .await
 }
