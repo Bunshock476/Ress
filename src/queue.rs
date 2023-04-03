@@ -4,7 +4,7 @@ use std::{
 };
 use twilight_model::id::{marker::GuildMarker, Id};
 
-use rand::{seq::SliceRandom};
+use rand::seq::SliceRandom;
 
 use crate::track::Track;
 

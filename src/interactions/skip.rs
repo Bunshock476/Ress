@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use twilight_lavalink::model::{Stop};
+use twilight_lavalink::model::Stop;
 use twilight_model::{
     application::{
         command::{Command, CommandType},

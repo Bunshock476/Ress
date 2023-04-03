@@ -55,7 +55,7 @@ pub async fn run(
             })
         }
     };
-    
+
     let queue = queue_arc.lock().unwrap();
     if queue.is_empty() {
         return Ok(InteractionResponse {
@@ -78,5 +78,4 @@ pub async fn run(
                 .build(),
         ),
     })
-    
 }
