@@ -69,7 +69,6 @@ impl Context {
     /// TODO: Add support for global commands
     pub async fn setup_commands(&self) -> anyhow::Result<()> {
         let commands = vec![
-            interactions::hello_test::command(),
             interactions::join::command(),
             interactions::leave::command(),
             interactions::play::command(),

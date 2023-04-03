@@ -23,7 +23,7 @@ mod utils;
 use context::Context;
 use twilight_util::builder::embed::EmbedBuilder;
 
-use crate::queue::TracksQueueError;
+use crate::{queue::TracksQueueError};
 
 // TODO: remove the dependencie on anyhow
 #[tokio::main]
@@ -128,10 +128,6 @@ async fn handle_interaction(
                     InteractionData::ApplicationCommand(command_data) => {
                         // Run the command and retrieve a response from the command caller
                         match command_data.name.as_str() {
-                            interactions::hello_test::NAME => {
-                                interactions::hello_test::run(&interaction, ctx.clone(), shard_id)
-                                    .await?;
-                            }
                             interactions::join::NAME => {
                                 interactions::join::run(&interaction, ctx.clone(), shard_id)
                                     .await?;
