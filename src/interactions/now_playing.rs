@@ -6,7 +6,7 @@ use twilight_model::application::{
 };
 use twilight_util::builder::{
     command::CommandBuilder,
-    embed::{EmbedBuilder, EmbedFieldBuilder},
+    embed::{EmbedBuilder, EmbedFieldBuilder, EmbedFooterBuilder},
 };
 
 use crate::{
@@ -82,7 +82,7 @@ pub async fn run(
                     EmbedFieldBuilder::new("\u{200b}", format!("**{} by {}**", title, author))
                         .build(),
                 )
-                .description(format!("Remaining time: {}", duration));
+                .footer(EmbedFooterBuilder::new(format!("Remaining time: {}", duration)).build());
         } else {
             empty_queue = true;
         }
