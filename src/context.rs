@@ -79,6 +79,7 @@ impl Context {
             interactions::shuffle::command(),
             interactions::queue::command(),
             interactions::now_playing::command(),
+            interactions::lup::command(),
         ];
         // Application command registering (doing it per guild as doing it globally can take a couple of minutes)
         self.interaction_client()

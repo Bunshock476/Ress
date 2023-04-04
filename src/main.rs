@@ -97,7 +97,13 @@ async fn handle_shard_stream_event(
     tracing::debug!("Shard {}, Event: {:#?}", shard_id, event);
 
     match event {
-        Event::Ready(r) => {tracing::info!("Connected to shard id {} with {} guilds", shard_id, r.guilds.len())}
+        Event::Ready(r) => {
+            tracing::info!(
+                "Connected to shard id {} with {} guilds",
+                shard_id,
+                r.guilds.len()
+            )
+        }
         Event::InteractionCreate(interaction) => {
             interactions::handle_interaction(ctx.clone(), interaction.0, shard_id).await?
         }

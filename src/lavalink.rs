@@ -1,23 +1,23 @@
 use std::sync::Arc;
 
 use futures::StreamExt;
-use twilight_lavalink::{node::IncomingEvents, model::{Stop, Play, IncomingEvent}};
-use twilight_model::id::{Id, marker::ChannelMarker};
+use twilight_lavalink::{
+    model::{IncomingEvent, Play, Stop},
+    node::IncomingEvents,
+};
+use twilight_model::id::{marker::ChannelMarker, Id};
 use twilight_util::builder::embed::EmbedBuilder;
 
-use crate::context::Context;
+use crate::{context::Context, queue::QueueLoopMode};
 
-pub async fn handle_events(
-    mut events: IncomingEvents,
-    ctx: Arc<Context>,
-) -> anyhow::Result<()> {
+pub async fn handle_events(mut events: IncomingEvents, ctx: Arc<Context>) -> anyhow::Result<()> {
     while let Some(event) = events.next().await {
         match event {
             IncomingEvent::TrackEnd(e) => {
-                tracing::info!("Track end");
+                tracing::debug!("Track end");
                 let player = ctx.lavalink.player(e.guild_id).await?;
-                let channel_id: Id<ChannelMarker>;
-                let mut embed_builder = EmbedBuilder::new().color(0xe04f2e);
+                let mut channel_id: Option<Id<ChannelMarker>> = None;
+                let mut end_of_queue = false;
                 {
                     let queue_arc = ctx.get_queue(e.guild_id).ok_or(anyhow::anyhow!(
                         "No queue found for guild id {}",
@@ -25,24 +25,59 @@ pub async fn handle_events(
                     ))?;
                     let queue = queue_arc.lock().unwrap();
 
-                    // Last track in queue played
-                    if queue.len() == 1 {
-                        channel_id = queue.peek()?.channel_id;
-                        player.send(Stop::from(e.guild_id))?;
-                        queue.pop()?;
-                        embed_builder = embed_builder.title("End of queue".to_owned());
-                    } else {
-                        queue.pop()?;
-                        let track = queue.peek()?;
-                        player.send(Play::from((e.guild_id, &track.track())))?;
-                        continue;
+                    let next_track = match queue.loop_mode {
+                        QueueLoopMode::None => {
+                            // Last track in queue played
+                            if queue.len() == 1 {
+                                channel_id = Some(queue.peek()?.channel_id);
+                                player.send(Stop::from(e.guild_id))?;
+                                queue.pop()?;
+                                end_of_queue = true;
+                                None
+                            } else {
+                                queue.pop()?;
+                                Some(queue.peek()?)
+                            }
+                        }
+                        QueueLoopMode::LoopQueue => {
+                            let current_track = e.track;
+                            let current_idx = queue
+                                .current_queue()
+                                .iter()
+                                .position(|track| track.track() == current_track)
+                                .ok_or(anyhow::anyhow!("Track not found in queue"))?;
+
+                            let current_queue = queue.current_queue();
+                            if current_idx >= queue.len() {
+                                Some(queue.peek()?)
+                            } else {
+                                Some(
+                                    current_queue
+                                        .get(current_idx + 1)
+                                        .ok_or(anyhow::anyhow!("Invalid index into queue"))?
+                                        .clone(),
+                                )
+                            }
+                        }
+                        QueueLoopMode::LoopTrack => Some(queue.peek()?),
+                    };
+
+                    if let Some(track) = next_track {
+                        player.send(Play::from((e.guild_id, track.track())))?;
                     }
                 }
 
-                ctx.http_client
-                    .create_message(channel_id)
-                    .embeds(&vec![embed_builder.build()])?
-                    .await?;
+                if end_of_queue {
+                    if let Some(id) = channel_id {
+                        ctx.http_client
+                            .create_message(id)
+                            .embeds(&vec![EmbedBuilder::new()
+                                .color(0xe04f2e)
+                                .title("End of queue")
+                                .build()])?
+                            .await?;
+                    }
+                }
             }
             IncomingEvent::TrackStart(start) => {
                 tracing::info!("Track start");

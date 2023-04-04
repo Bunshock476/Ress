@@ -4,17 +4,23 @@ use rand::seq::SliceRandom;
 
 use crate::track::Track;
 
+pub enum QueueLoopMode {
+    None,
+    LoopQueue,
+    LoopTrack,
+}
+
 // Per guild queue, works in FIFO mode
-// TODO: Allow for looping
-#[derive(Debug)]
 pub struct TracksQueue {
     inner: Arc<Mutex<Vec<Track>>>,
+    pub loop_mode: QueueLoopMode,
 }
 
 impl TracksQueue {
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(Vec::new())),
+            loop_mode: QueueLoopMode::None,
         }
     }
 
@@ -66,5 +72,9 @@ impl TracksQueue {
         let mut inner = self.inner.lock().unwrap();
 
         inner.shuffle(&mut rand::thread_rng());
+    }
+
+    pub fn set_loop_mode(&mut self, mode: QueueLoopMode) {
+        self.loop_mode = mode;
     }
 }
