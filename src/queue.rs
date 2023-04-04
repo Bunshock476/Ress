@@ -1,36 +1,14 @@
-use std::{
-    fmt::Display,
-    sync::{Arc, Mutex},
-};
-use twilight_model::id::{marker::GuildMarker, Id};
+use std::sync::{Arc, Mutex};
 
 use rand::seq::SliceRandom;
 
 use crate::track::Track;
 
 #[derive(Debug)]
-pub enum TracksQueueError {
-    EmptyQueue,
-    NoQueueFound(Id<GuildMarker>),
-}
-
-impl Display for TracksQueueError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match *self {
-            TracksQueueError::EmptyQueue => write!(f, "Trying to operate on empty queue"),
-            TracksQueueError::NoQueueFound(s) => write!(f, "No queue found for guild id {s}"),
-        }
-    }
-}
-
-impl std::error::Error for TracksQueueError {}
-
-#[derive(Debug)]
 pub struct TracksQueue {
     inner: Arc<Mutex<Vec<Track>>>,
 }
 
-#[allow(dead_code)]
 impl TracksQueue {
     pub fn new() -> Self {
         Self {
@@ -43,20 +21,20 @@ impl TracksQueue {
         inner.push(track);
     }
 
-    pub fn pop(&self) -> Result<Track, TracksQueueError> {
+    pub fn pop(&self) -> anyhow::Result<Track> {
         let mut inner = self.inner.lock().unwrap();
         if inner.is_empty() {
-            Err(TracksQueueError::EmptyQueue)
+            Err(anyhow::anyhow!("Empty queue"))
         } else {
             Ok(inner.remove(0_usize))
         }
     }
 
-    pub fn peek(&self) -> Result<Track, TracksQueueError> {
+    pub fn peek(&self) -> anyhow::Result<Track> {
         let inner = self.inner.lock().unwrap();
         match inner.first() {
             Some(val) => Ok(val.clone()),
-            None => Err(TracksQueueError::EmptyQueue),
+            None => Err(anyhow::anyhow!("Empty queue")),
         }
     }
 

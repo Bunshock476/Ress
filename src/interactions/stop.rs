@@ -7,7 +7,7 @@ use twilight_model::application::{
 };
 use twilight_util::builder::command::CommandBuilder;
 
-use crate::{context::Context, queue::TracksQueueError};
+use crate::context::Context;
 
 pub const NAME: &str = "stop";
 
@@ -20,7 +20,13 @@ pub async fn run(
     ctx: Arc<Context>,
     _shard_id: ShardId,
 ) -> anyhow::Result<()> {
-    tracing::info!("Stop command by {}", interaction.author().unwrap().name);
+    tracing::debug!(
+        "Stop command by {}",
+        interaction
+            .author()
+            .ok_or(anyhow::anyhow!("No author found"))?
+            .name
+    );
 
     let guild_id = interaction.guild_id.expect("Valid guild id");
 
@@ -39,7 +45,7 @@ pub async fn run(
 
     // Clear queue
     ctx.get_queue(guild_id)
-        .ok_or(TracksQueueError::NoQueueFound(guild_id))?
+        .ok_or(anyhow::anyhow!("No queue found for guild id {}", guild_id))?
         .lock()
         .unwrap()
         .clear();

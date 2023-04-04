@@ -20,7 +20,13 @@ pub async fn run(
     ctx: Arc<Context>,
     _shard_id: ShardId,
 ) -> anyhow::Result<()> {
-    tracing::info!("Skip command by {}", interaction.author().unwrap().name);
+    tracing::debug!(
+        "Skip command by {}",
+        interaction
+            .author()
+            .ok_or(anyhow::anyhow!("No author found"))?
+            .name
+    );
 
     let guild_id = interaction.guild_id.expect("Valid guild id");
 

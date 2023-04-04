@@ -1,4 +1,3 @@
-pub mod errors;
 pub mod join;
 pub mod leave;
 pub mod now_playing;

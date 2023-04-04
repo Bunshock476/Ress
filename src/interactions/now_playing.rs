@@ -9,7 +9,10 @@ use twilight_util::builder::{
     embed::{EmbedBuilder, EmbedFieldBuilder},
 };
 
-use crate::{context::Context, utils::from_millis_to_minutes};
+use crate::{
+    context::Context,
+    utils::{check_voice_state, from_millis_to_minutes},
+};
 
 pub const NAME: &str = "np";
 
@@ -27,19 +30,23 @@ pub async fn run(
     ctx: Arc<Context>,
     _shard_id: ShardId,
 ) -> anyhow::Result<()> {
-    tracing::debug!("Queue command by {}", interaction.author().unwrap().name);
+    tracing::debug!(
+        "Queue command by {}",
+        interaction
+            .author()
+            .ok_or(anyhow::anyhow!("No author found"))?
+            .name
+    );
 
     let guild_id = interaction.guild_id.expect("Valid guild id");
 
     let bot_id = ctx.http_client.current_user().await?.model().await?.id;
-    match ctx.cache.voice_state(bot_id, guild_id) {
-        Some(vc) => vc,
-        None => {
-            return ctx
-                .send_message_response(interaction, "Im not in a voice channel")
-                .await;
-        }
-    };
+
+    if !check_voice_state(ctx.clone(), bot_id, guild_id) {
+        return ctx
+            .send_message_response(interaction, "Im not in a voice channel")
+            .await;
+    }
 
     let queue_arc = match ctx.get_queue(guild_id) {
         Some(arc) => arc,

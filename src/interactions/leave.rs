@@ -11,7 +11,7 @@ use twilight_model::{
 };
 use twilight_util::builder::command::CommandBuilder;
 
-use crate::{context::Context, queue::TracksQueueError};
+use crate::context::Context;
 
 pub const NAME: &str = "leave";
 
@@ -24,7 +24,13 @@ pub async fn run(
     ctx: Arc<Context>,
     shard_id: ShardId,
 ) -> anyhow::Result<()> {
-    tracing::info!("Leave command by {}", interaction.author().unwrap().name);
+    tracing::debug!(
+        "Leave command by {}",
+        interaction
+            .author()
+            .ok_or(anyhow::anyhow!("No author found"))?
+            .name
+    );
 
     let guild_id = interaction.guild_id.expect("Valid guild id");
 
@@ -41,13 +47,16 @@ pub async fn run(
     let player = ctx.lavalink.player(guild_id).await?;
     player.send(Destroy::from(guild_id))?;
 
-    let sender = ctx.shard_senders.get(&shard_id).unwrap();
+    let sender = ctx.shard_senders.get(&shard_id).ok_or(anyhow::anyhow!(
+        "No message sender for shard id {}",
+        shard_id
+    ))?;
 
     sender.command(&UpdateVoiceState::new(guild_id, None, false, false))?;
 
     // Clear queue
     ctx.get_queue(guild_id)
-        .ok_or(TracksQueueError::NoQueueFound(guild_id))?
+        .ok_or(anyhow::anyhow!("No queue found for guild id {}", guild_id))?
         .lock()
         .unwrap()
         .clear();

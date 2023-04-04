@@ -7,8 +7,7 @@ use twilight_model::application::{
 };
 use twilight_util::builder::command::CommandBuilder;
 
-use crate::interactions::errors::NoAuthorFound;
-use crate::{context::Context, interactions::errors::InvalidGuildId};
+use crate::{context::Context, utils::check_voice_state};
 
 pub const NAME: &str = "resume";
 
@@ -21,21 +20,22 @@ pub async fn run(
     ctx: Arc<Context>,
     _shard_id: ShardId,
 ) -> anyhow::Result<()> {
-    let guild_id = interaction.guild_id.ok_or(InvalidGuildId {})?;
+    let guild_id = interaction
+        .guild_id
+        .ok_or(anyhow::anyhow!("Invalid guild id"))?;
 
-    let author = interaction.author().ok_or(NoAuthorFound {})?;
+    let author = interaction
+        .author()
+        .ok_or(anyhow::anyhow!("No author found"))?;
 
-    tracing::info!("Resume command by {}", author.name);
+    tracing::debug!("Resume command by {}", author.name);
 
     let bot_id = ctx.http_client.current_user().await?.model().await?.id;
-    match ctx.cache.voice_state(bot_id, guild_id) {
-        Some(vc) => vc,
-        None => {
-            return ctx
-                .send_message_response(interaction, "Im not in a voice channel")
-                .await;
-        }
-    };
+    if !check_voice_state(ctx.clone(), bot_id, guild_id) {
+        return ctx
+            .send_message_response(interaction, "Im not in a voice channel")
+            .await;
+    }
 
     let player = ctx.lavalink.player(guild_id).await?;
 

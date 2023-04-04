@@ -1,5 +1,5 @@
+use crate::context::Context;
 use std::sync::Arc;
-
 use twilight_gateway::ShardId;
 use twilight_model::{
     application::{
@@ -9,12 +9,6 @@ use twilight_model::{
     gateway::payload::outgoing::UpdateVoiceState,
 };
 use twilight_util::builder::command::CommandBuilder;
-
-use crate::interactions::errors::NoAuthorFound;
-use crate::{
-    context::Context,
-    interactions::errors::{InvalidGuildId, NoMessageSenderForShard},
-};
 
 pub const NAME: &str = "join";
 
@@ -27,11 +21,15 @@ pub async fn run(
     ctx: Arc<Context>,
     shard_id: ShardId,
 ) -> anyhow::Result<()> {
-    let guild_id = interaction.guild_id.ok_or(InvalidGuildId {})?;
+    let guild_id = interaction
+        .guild_id
+        .ok_or(anyhow::anyhow!("Invalid guild id"))?;
 
-    let author = interaction.author().ok_or(NoAuthorFound {})?;
+    let author = interaction
+        .author()
+        .ok_or(anyhow::anyhow!("No author found"))?;
 
-    tracing::info!("Join command by {}", author.name);
+    tracing::debug!("Join command by {}", author.name);
 
     let vc = match ctx.cache.voice_state(author.id, guild_id) {
         Some(vc) => vc,
@@ -47,10 +45,10 @@ pub async fn run(
 
     let channel_id = vc.channel_id();
 
-    let sender = ctx
-        .shard_senders
-        .get(&shard_id)
-        .ok_or(NoMessageSenderForShard { shard_id })?;
+    let sender = ctx.shard_senders.get(&shard_id).ok_or(anyhow::anyhow!(
+        "No message sender for shard id {}",
+        shard_id
+    ))?;
 
     sender.command(&UpdateVoiceState::new(guild_id, channel_id, false, false))?;
 

@@ -23,8 +23,6 @@ mod utils;
 use context::Context;
 use twilight_util::builder::embed::EmbedBuilder;
 
-use crate::{queue::TracksQueueError};
-
 // TODO: remove the dependencie on anyhow
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -193,9 +191,10 @@ async fn handle_lavalink_events(
                 let channel_id: Id<ChannelMarker>;
                 let mut embed_builder = EmbedBuilder::new().color(0xe04f2e);
                 {
-                    let queue_arc = ctx
-                        .get_queue(e.guild_id)
-                        .ok_or(TracksQueueError::NoQueueFound(e.guild_id))?;
+                    let queue_arc = ctx.get_queue(e.guild_id).ok_or(anyhow::anyhow!(
+                        "No queue found for guild id {}",
+                        e.guild_id
+                    ))?;
                     let queue = queue_arc.lock().unwrap();
 
                     // Last track in queue played
@@ -222,9 +221,10 @@ async fn handle_lavalink_events(
                 let mut embed_builder = EmbedBuilder::new().color(0xe04f2e);
                 let channel_id: Id<ChannelMarker>;
                 {
-                    let queue_arc = ctx
-                        .get_queue(start.guild_id)
-                        .ok_or(TracksQueueError::NoQueueFound(start.guild_id))?;
+                    let queue_arc = ctx.get_queue(start.guild_id).ok_or(anyhow::anyhow!(
+                        "No queue found for guild id {}",
+                        start.guild_id
+                    ))?;
                     let queue = queue_arc.lock().unwrap();
 
                     let track = queue.peek()?;

@@ -1,3 +1,4 @@
+use crate::context::Context;
 use std::sync::Arc;
 use twilight_gateway::ShardId;
 use twilight_model::application::{
@@ -5,9 +6,6 @@ use twilight_model::application::{
     interaction::Interaction,
 };
 use twilight_util::builder::command::CommandBuilder;
-
-use crate::interactions::errors::NoAuthorFound;
-use crate::{context::Context, interactions::errors::InvalidGuildId};
 
 pub const NAME: &str = "shuffle";
 
@@ -20,11 +18,15 @@ pub async fn run(
     ctx: Arc<Context>,
     _shard_id: ShardId,
 ) -> anyhow::Result<()> {
-    let guild_id = interaction.guild_id.ok_or(InvalidGuildId {})?;
+    let guild_id = interaction
+        .guild_id
+        .ok_or(anyhow::anyhow!("Invalid guild id"))?;
 
-    let author = interaction.author().ok_or(NoAuthorFound {})?;
+    let author = interaction
+        .author()
+        .ok_or(anyhow::anyhow!("No author found"))?;
 
-    tracing::info!("Shuffle command by {}", author.name);
+    tracing::debug!("Shuffle command by {}", author.name);
 
     let bot_id = ctx.http_client.current_user().await?.model().await?.id;
     match ctx.cache.voice_state(bot_id, guild_id) {

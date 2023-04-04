@@ -12,8 +12,7 @@ use twilight_model::application::{
 };
 use twilight_util::builder::{command::CommandBuilder, embed::EmbedBuilder};
 
-use crate::interactions::errors::NoAuthorFound;
-use crate::{context::Context, interactions::errors::InvalidGuildId};
+use crate::{context::Context, utils::check_voice_state};
 
 pub const NAME: &str = "play";
 
@@ -47,21 +46,22 @@ pub async fn run(
     ctx: Arc<Context>,
     _shard_id: ShardId,
 ) -> anyhow::Result<()> {
-    let guild_id = interaction.guild_id.ok_or(InvalidGuildId {})?;
+    let guild_id = interaction
+        .guild_id
+        .ok_or(anyhow::anyhow!("Invalid guild id"))?;
 
-    let author = interaction.author().ok_or(NoAuthorFound {})?;
+    let author = interaction
+        .author()
+        .ok_or(anyhow::anyhow!("No author found"))?;
 
-    tracing::info!("Play command by {}", author.name);
+    tracing::debug!("Play command by {}", author.name);
 
     let bot_id = ctx.http_client.current_user().await?.model().await?.id;
-    match ctx.cache.voice_state(bot_id, guild_id) {
-        Some(vc) => vc,
-        None => {
-            return ctx
-                .send_message_response(interaction, "Im not in a voice channel")
-                .await;
-        }
-    };
+    if !check_voice_state(ctx.clone(), bot_id, guild_id) {
+        return ctx
+            .send_message_response(interaction, "Im not in a voice channel")
+            .await;
+    }
 
     let options = {
         if let Some(InteractionData::ApplicationCommand(data)) = &interaction.data {
@@ -104,9 +104,15 @@ pub async fn run(
     let mut embed_builder = EmbedBuilder::new().color(0xe04f2e);
 
     match loaded.load_type {
-        LoadType::LoadFailed => embed_builder = embed_builder.title("Failed to load track"),
+        LoadType::LoadFailed => {
+            return ctx
+                .send_message_response(interaction, "Failed to load track")
+                .await
+        }
         LoadType::NoMatches => {
-            embed_builder = embed_builder.title("No results found");
+            return ctx
+                .send_message_response(interaction, "No results found")
+                .await;
         }
         LoadType::PlaylistLoaded => {
             let queue_arc = ctx.get_or_create_queue(guild_id);
@@ -125,7 +131,14 @@ pub async fn run(
             player.send(Play::from((guild_id, &first.track())))?;
         }
         LoadType::SearchResult | LoadType::TrackLoaded => {
-            let track = loaded.tracks.first().unwrap();
+            let track = match loaded.tracks.first() {
+                Some(t) => t,
+                None => {
+                    return ctx
+                        .send_message_response(interaction, "Failed to process track")
+                        .await
+                }
+            };
             let title = track.info.title.clone().unwrap_or("<Unknown>".to_string());
             let uri = &track.info.uri;
             let author = track.info.author.clone().unwrap_or("<Unknown>".to_string());
