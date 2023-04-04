@@ -1,6 +1,7 @@
 use twilight_lavalink::http::{Track as TwilightTrack, TrackInfo};
 use twilight_model::id::{marker::ChannelMarker, Id};
 
+// Wrapper over twilight_lavalink track to add extra context to help embed displaying
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Track {
     inner: TwilightTrack,

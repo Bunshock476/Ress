@@ -4,6 +4,8 @@ use rand::seq::SliceRandom;
 
 use crate::track::Track;
 
+// Per guild queue, works in FIFO mode
+// TODO: Allow for looping
 #[derive(Debug)]
 pub struct TracksQueue {
     inner: Arc<Mutex<Vec<Track>>>,

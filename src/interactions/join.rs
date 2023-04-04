@@ -31,7 +31,7 @@ pub async fn run(
 
     tracing::debug!("Join command by {}", author.name);
 
-    let vc = match ctx.cache.voice_state(author.id, guild_id) {
+    let voice_channel = match ctx.cache.voice_state(author.id, guild_id) {
         Some(vc) => vc,
         None => {
             return ctx
@@ -43,7 +43,7 @@ pub async fn run(
         }
     };
 
-    let channel_id = vc.channel_id();
+    let channel_id = voice_channel.channel_id();
 
     let sender = ctx.shard_senders.get(&shard_id).ok_or(anyhow::anyhow!(
         "No message sender for shard id {}",

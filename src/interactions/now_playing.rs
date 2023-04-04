@@ -11,7 +11,7 @@ use twilight_util::builder::{
 
 use crate::{
     context::Context,
-    utils::{check_voice_state, from_millis_to_minutes},
+    utils::{check_voice_state, from_ms_to_minutes},
 };
 
 pub const NAME: &str = "np";
@@ -70,7 +70,7 @@ pub async fn run(
         if !queue.is_empty() {
             let track = queue.peek()?;
             let title = track.info().title.clone().unwrap_or("<UNKNOWN>".to_owned());
-            let duration = from_millis_to_minutes(track.info().length - player.position() as u64);
+            let duration = from_ms_to_minutes(track.info().length - player.position() as u64);
             let author = track
                 .info()
                 .author

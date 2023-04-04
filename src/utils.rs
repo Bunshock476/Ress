@@ -7,10 +7,9 @@ use twilight_model::id::{
 
 use crate::context::Context;
 
-pub fn from_millis_to_minutes(millis: u64) -> String {
-    let ms = millis as f64;
-    let minutes = (ms / 60000.0).floor() as i32;
-    let seconds = ((ms % 60000.0) / 1000.0) as i32;
+pub fn from_ms_to_minutes(ms: u64) -> String {
+    let minutes = (ms as f64 / 60000.0).floor() as i32;
+    let seconds = ((ms as f64 % 60000.0) / 1000.0) as i32;
 
     if seconds == 60 {
         format!("{}:00", minutes + 1)

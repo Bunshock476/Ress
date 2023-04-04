@@ -11,7 +11,7 @@ use twilight_util::builder::{
 
 use crate::{
     context::Context,
-    utils::{check_voice_state, from_millis_to_minutes},
+    utils::{check_voice_state, from_ms_to_minutes},
 };
 
 pub const NAME: &str = "queue";
@@ -127,7 +127,7 @@ pub async fn run(
         };
 
         for track in tracks_to_show {
-            let duration = from_millis_to_minutes(track.info().length);
+            let duration = from_ms_to_minutes(track.info().length);
             let index = queue.iter().position(|t| t == track).unwrap_or(0) + 1;
             embed_builder = embed_builder.field(
                 EmbedFieldBuilder::new(
@@ -144,7 +144,7 @@ pub async fn run(
         }
     } else {
         for track in &queue {
-            let duration = from_millis_to_minutes(track.info().length);
+            let duration = from_ms_to_minutes(track.info().length);
             let index = queue.iter().position(|t| t == track).unwrap_or(0) + 1;
             embed_builder = embed_builder.field(
                 EmbedFieldBuilder::new(
