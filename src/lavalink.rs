@@ -40,24 +40,11 @@ pub async fn handle_events(mut events: IncomingEvents, ctx: Arc<Context>) -> any
                             }
                         }
                         QueueLoopMode::LoopQueue => {
-                            let current_track = e.track;
-                            let current_idx = queue
-                                .current_queue()
-                                .iter()
-                                .position(|track| track.track() == current_track)
-                                .ok_or(anyhow::anyhow!("Track not found in queue"))?;
+                            let current_track = queue.peek()?;
+                            queue.push(current_track);
+                            queue.pop()?;
 
-                            let current_queue = queue.current_queue();
-                            if current_idx >= queue.len() {
-                                Some(queue.peek()?)
-                            } else {
-                                Some(
-                                    current_queue
-                                        .get(current_idx + 1)
-                                        .ok_or(anyhow::anyhow!("Invalid index into queue"))?
-                                        .clone(),
-                                )
-                            }
+                            Some(queue.peek()?)
                         }
                         QueueLoopMode::LoopTrack => Some(queue.peek()?),
                     };
@@ -68,6 +55,7 @@ pub async fn handle_events(mut events: IncomingEvents, ctx: Arc<Context>) -> any
                 }
 
                 if end_of_queue {
+                    tracing::info!("End of queue");
                     if let Some(id) = channel_id {
                         ctx.http_client
                             .create_message(id)
