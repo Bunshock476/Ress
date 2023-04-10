@@ -20,6 +20,7 @@ use twilight_util::builder::InteractionResponseDataBuilder;
 use crate::{interactions, queue::TracksQueue};
 
 pub struct Context {
+    pub app_id: Id<ApplicationMarker>,
     pub http_client: HttpClient,
     pub hyper_client: HyperClient<HttpConnector>,
     pub cache: InMemoryCache,
@@ -41,7 +42,10 @@ impl Context {
 
         let lavalink = Lavalink::new(user_id, 1u64);
 
+        let app_id = http_client.current_user_application().await?.model().await?.id;
+
         Ok(Self {
+            app_id,
             http_client,
             hyper_client: HyperClient::new(),
             cache,
@@ -51,18 +55,8 @@ impl Context {
         })
     }
 
-    pub async fn app_id(&self) -> anyhow::Result<Id<ApplicationMarker>> {
-        Ok(self
-            .http_client
-            .current_user_application()
-            .await?
-            .model()
-            .await?
-            .id)
-    }
-
     pub async fn interaction_client(&self) -> anyhow::Result<InteractionClient> {
-        Ok(self.http_client.interaction(self.app_id().await?))
+        Ok(self.http_client.interaction(self.app_id))
     }
 
     /// Setup all the slash commands (currently only per guild)
