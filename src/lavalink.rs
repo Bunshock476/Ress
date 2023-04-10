@@ -55,7 +55,7 @@ pub async fn handle_events(mut events: IncomingEvents, ctx: Arc<Context>) -> any
                 }
 
                 if end_of_queue {
-                    tracing::info!("End of queue");
+                    tracing::debug!("End of queue");
                     if let Some(id) = channel_id {
                         ctx.http_client
                             .create_message(id)

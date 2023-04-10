@@ -94,7 +94,7 @@ async fn handle_shard_stream_event(
     ctx: Arc<Context>,
     shard_id: ShardId,
 ) -> anyhow::Result<()> {
-    tracing::debug!("Shard {}, Event: {:#?}", shard_id, event);
+    tracing::debug!("Shard {}, Event: {:?}", shard_id, event);
 
     match event {
         Event::Ready(r) => {
