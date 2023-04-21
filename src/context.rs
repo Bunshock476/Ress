@@ -62,7 +62,7 @@ impl Context {
     /// Setup all the slash commands (currently only per guild)
     /// TODO: Add support for global commands
     pub async fn setup_commands(&self) -> anyhow::Result<()> {
-        let commands = vec![
+        let guild_commands = vec![
             interactions::join::command(),
             interactions::leave::command(),
             interactions::play::command(),
@@ -75,13 +75,19 @@ impl Context {
             interactions::now_playing::command(),
             interactions::lup::command(),
         ];
+
+        let global_commands = guild_commands.clone();
         // Application command registering (doing it per guild as doing it globally can take a couple of minutes)
         self.interaction_client()
             .await?
             .set_guild_commands(
                 Id::new(std::env::var("TEST_GUILD")?.parse::<u64>()?),
-                &commands,
+                &guild_commands,
             )
+            .await?;
+        self.interaction_client()
+            .await?
+            .set_global_commands(&global_commands)
             .await?;
         Ok(())
     }
