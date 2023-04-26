@@ -19,10 +19,8 @@ use context::Context;
 async fn main() -> anyhow::Result<()> {
     // Load environment variables from .env file
     dotenv::dotenv().expect(".env file");
-
     // Initialize log tracer
     tracing_subscriber::fmt::init();
-
     // Setup configurations
     let token = std::env::var("DISCORD_TOKEN")?;
     let intents = Intents::GUILD_MESSAGES
@@ -94,7 +92,7 @@ async fn handle_shard_stream_event(
     ctx: Arc<Context>,
     shard_id: ShardId,
 ) -> anyhow::Result<()> {
-    tracing::debug!("Shard {}, Event: {:?}", shard_id, event);
+    tracing::trace!("Shard {}, Event: {:?}", shard_id, event);
 
     match event {
         Event::Ready(r) => {

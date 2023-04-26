@@ -4,6 +4,7 @@ use rand::seq::SliceRandom;
 
 use crate::track::Track;
 
+#[derive(Debug)]
 pub enum QueueLoopMode {
     None,
     LoopQueue,
@@ -11,10 +12,12 @@ pub enum QueueLoopMode {
 }
 
 // Per guild queue, works in FIFO mode
+#[derive(Debug)]
 pub struct TracksQueue {
     inner: Arc<Mutex<Vec<Track>>>,
     pub loop_mode: QueueLoopMode,
 }
+
 
 impl TracksQueue {
     pub fn new() -> Self {

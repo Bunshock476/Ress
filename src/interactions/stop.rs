@@ -42,7 +42,7 @@ pub async fn run(
 
     let player = ctx.lavalink.player(guild_id).await?;
     player.send(Stop::from(guild_id))?;
-
+    
     // Clear queue
     ctx.get_queue(guild_id)
         .ok_or(anyhow::anyhow!("No queue found for guild id {}", guild_id))?

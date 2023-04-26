@@ -11,6 +11,7 @@ use twilight_util::builder::embed::EmbedBuilder;
 use crate::{context::Context, queue::QueueLoopMode};
 
 pub async fn handle_events(mut events: IncomingEvents, ctx: Arc<Context>) -> anyhow::Result<()> {
+    
     while let Some(event) = events.next().await {
         match event {
             IncomingEvent::TrackEnd(e) => {
@@ -27,8 +28,10 @@ pub async fn handle_events(mut events: IncomingEvents, ctx: Arc<Context>) -> any
 
                     let next_track = match queue.loop_mode {
                         QueueLoopMode::None => {
+                            if queue.is_empty() {
+                                None
+                            } else if queue.len() == 1 {
                             // Last track in queue played
-                            if queue.len() == 1 {
                                 channel_id = Some(queue.peek()?.channel_id);
                                 player.send(Stop::from(e.guild_id))?;
                                 queue.pop()?;
@@ -68,7 +71,7 @@ pub async fn handle_events(mut events: IncomingEvents, ctx: Arc<Context>) -> any
                 }
             }
             IncomingEvent::TrackStart(start) => {
-                tracing::info!("Track start");
+                tracing::debug!("Track start");
                 let mut embed_builder = EmbedBuilder::new().color(0xe04f2e);
                 let channel_id: Id<ChannelMarker>;
                 {
