@@ -34,6 +34,8 @@ pub async fn run(
 
     let guild_id = interaction.guild_id.expect("Valid guild id");
 
+    tracing::debug!("Guild id: {}", guild_id);
+
     let bot_id = ctx.http_client.current_user().await?.model().await?.id;
     match ctx.cache.voice_state(bot_id, guild_id) {
         Some(vc) => vc,

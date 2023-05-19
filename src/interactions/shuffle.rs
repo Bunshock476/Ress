@@ -47,7 +47,7 @@ pub async fn run(
         }
     };
 
-    // Workaraound to not await while holding a lock to queue
+    // Workaround to not await while holding a lock to queue
     let mut empty_queue = false;
     {
         let queue = queue_arc.lock().unwrap();

@@ -29,6 +29,7 @@ pub async fn handle_events(mut events: IncomingEvents, ctx: Arc<Context>) -> any
                     let next_track = match queue.loop_mode {
                         QueueLoopMode::None => {
                             if queue.is_empty() {
+                                end_of_queue = true;
                                 None
                             } else if queue.len() == 1 {
                             // Last track in queue played
@@ -97,13 +98,13 @@ pub async fn handle_events(mut events: IncomingEvents, ctx: Arc<Context>) -> any
                         .unwrap_or("<Unknown>".to_string());
                     embed_builder = embed_builder
                         .title("Now playing".to_owned())
-                        .description(format!("**[{}]({})** \n By **{}**", title, uri, author))
+                        .description(format!("**[{}]({})** \n By **{}**", title, uri, author));
                 }
 
-                ctx.http_client
-                    .create_message(channel_id)
-                    .embeds(&vec![embed_builder.build()])?
-                    .await?;
+                if let Err(err) = ctx.http_client.create_message(channel_id).embeds(&vec![embed_builder.build()])?.await {
+                    tracing::error!("{}", err);
+                    tracing::debug!("{:?}", err.kind());
+                }
             }
             _ => {}
         }
